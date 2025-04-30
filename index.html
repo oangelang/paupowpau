@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PauPowPau</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Bangers&family=Luckiest+Guy&display=swap');
+        
+        body {
+            font-family: 'Bangers', 'Comic Sans MS', cursive, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+            cursor: pointer;
+            background: linear-gradient(135deg, #ffcc99, #ff99cc);
+            animation: backgroundChange 15s infinite alternate;
+        }
+        
+        @keyframes backgroundChange {
+            0% { background: linear-gradient(135deg, #ffcc99, #ff99cc); }
+            20% { background: linear-gradient(135deg, #99ccff, #ff99ff); }
+            40% { background: linear-gradient(135deg, #99ff99, #ffff99); }
+            60% { background: linear-gradient(135deg, #ff9966, #ff6699); }
+            80% { background: linear-gradient(135deg, #cc99ff, #9999ff); }
+            100% { background: linear-gradient(135deg, #ff6666, #ffcc66); }
+        }
+        
+        .speech-bubble {
+            position: relative;
+            background-color: white;
+            border: 5px solid black;
+            border-radius: 50% 50% 50% 20%;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 8px 8px 0px #333;
+        }
+        
+        .speech-bubble:before {
+            content: "";
+            position: absolute;
+            bottom: -30px;
+            left: 30px;
+            width: 40px;
+            height: 40px;
+            background-color: white;
+            border-right: 5px solid black;
+            border-bottom: 5px solid black;
+            transform: rotate(45deg);
+            z-index: -1;
+        }
+        
+        .main-bubble {
+            margin-bottom: 50px;
+            position: relative;
+            transform: rotate(-5deg);
+            padding: 20px 40px;
+            max-width: 90%;
+            animation: pulsate 2s infinite alternate;
+            z-index: 100;
+        }
+        
+        @keyframes pulsate {
+            0% { transform: scale(1) rotate(-5deg); }
+            100% { transform: scale(1.05) rotate(-5deg); }
+        }
+        
+        h1 {
+            font-family: 'Luckiest Guy', 'Bangers', cursive;
+            font-size: 3rem;
+            letter-spacing: 2px;
+            color: #ff3366;
+            text-shadow: 3px 3px 0px #ffcc00, 5px 5px 0px #000;
+            margin: 0;
+            padding: 0;
+        }
+        
+        .image-container {
+            position: absolute;
+            pointer-events: none;
+            z-index: 10;
+            transition: transform 0.5s ease-out;
+        }
+        
+        .image-container img {
+            max-width: 300px;
+            height: auto;
+        }
+        
+        .controls {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+            display: flex;
+            gap: 10px;
+        }
+        
+        .btn {
+            background-color: white;
+            border: 2px solid #333;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 2px 2px 0px #333;
+        }
+        
+        .btn:hover {
+            transform: scale(1.1);
+        }
+        
+        #background-video {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: -1;
+            opacity: 0.2;
+        }
+        
+        .confetti {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background-color: #f2d74e;
+            opacity: 0.8;
+            animation: fall linear forwards;
+        }
+        
+        @keyframes fall {
+            0% {
+                transform: translateY(0) rotate(0deg);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(100vh) rotate(360deg);
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="speech-bubble main-bubble">
+        <h1>Happy 40th Birthday, Pau!</h1>
+    </div>
+    
+    <div class="controls">
+        <div class="btn" id="sound-toggle">🔊</div>
+        <div class="btn" id="clear-all">🧹</div>
+    </div>
+    
+    <audio id="background-music" loop>
+        <source src="pau.m4a" type="audio/mp4">
+        Your browser does not support the audio element.
+    </audio>
+
+    <script>
+        // Configuration
+        const totalImages = 7;
+        let soundOn = true;
+        
+        // Elements
+        const music = document.getElementById('background-music');
+        const soundToggle = document.getElementById('sound-toggle');
+        const clearAllBtn = document.getElementById('clear-all');
+        
+        // Main click event for adding images
+        document.addEventListener('click', function(e) {
+            // Prevent clicks on controls from creating images
+            if (e.target.closest('.controls')) {
+                return;
+            }
+            
+            // Play audio on click
+            playAudio();
+            
+            // Create image at click location IMMEDIATELY
+            createImage(e.clientX, e.clientY);
+        });
+        
+        // For mobile touch events
+        document.addEventListener('touchstart', function(e) {
+            // Prevent default to avoid scrolling
+            e.preventDefault();
+            
+            // Prevent clicks on controls from creating images
+            if (e.target.closest('.controls')) {
+                return;
+            }
+            
+            // Play audio on touch
+            playAudio();
+            
+            // Get touch position
+            const touch = e.touches[0];
+            
+            // Create image at touch location IMMEDIATELY
+            createImage(touch.clientX, touch.clientY);
+        }, {passive: false});
+        
+        // Preload images
+        const imageCache = [];
+        for (let i = 1; i <= totalImages; i++) {
+            const img = new Image();
+            img.src = `${i}.png`;
+            imageCache.push(img);
+        }
+        
+        // Play audio function
+        function playAudio() {
+            if (soundOn) {
+                music.play().catch(error => {
+                    console.log("Autoplay prevented:", error);
+                });
+            }
+        }
+        
+        // Toggle sound
+        soundToggle.addEventListener('click', function(e) {
+            e.stopPropagation();
+            soundOn = !soundOn;
+            if (soundOn) {
+                music.play();
+                soundToggle.textContent = '🔊';
+            } else {
+                music.pause();
+                soundToggle.textContent = '🔇';
+            }
+        });
+        
+        // Clear all images
+        clearAllBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            document.querySelectorAll('.image-container').forEach(function(el) {
+                el.remove();
+            });
+        });
+        
+        // Create and animate an image
+        function createImage(x, y) {
+            // Choose random image number
+            const imageNumber = Math.floor(Math.random() * totalImages) + 1;
+            
+            // Create container and image
+            const container = document.createElement('div');
+            container.className = 'image-container';
+            
+            const img = document.createElement('img');
+            img.src = `${imageNumber}.png`;
+            img.alt = 'Pau Pow';
+            
+            // Random size factor
+            const sizeFactor = 0.5 + Math.random();
+            img.style.maxWidth = `${300 * sizeFactor}px`;
+            
+            // Add image to container and container to body
+            container.appendChild(img);
+            document.body.appendChild(container);
+            
+            // Position the image where clicked - IMMEDIATELY visible
+            container.style.left = `${x - (150 * sizeFactor)}px`;
+            container.style.top = `${y - (150 * sizeFactor)}px`;
+            
+            // Randomly choose animation type
+            const animationType = Math.random() < 0.5 ? 'spin' : 'enlarge';
+            
+            if (animationType === 'spin') {
+                // Set initial state for immediate visibility
+                container.style.transform = 'rotate(0deg)';
+                
+                // Spin animation
+                let rotation = 0;
+                const spinSpeed = 15; // Faster rotation
+                const spinInterval = setInterval(function() {
+                    rotation += spinSpeed;
+                    container.style.transform = `rotate(${rotation}deg)`;
+                    
+                    if (rotation >= 360) {
+                        clearInterval(spinInterval);
+                    }
+                }, 20); // Faster interval
+            } else {
+                // Set initial scale for immediate visibility
+                container.style.transform = 'scale(0.2)';
+                
+                // Enlarge animation
+                let scale = 0.2; // Start with some visibility
+                const growSpeed = 0.08; // Faster growth
+                const enlargeInterval = setInterval(function() {
+                    scale += growSpeed;
+                    container.style.transform = `scale(${scale})`;
+                    
+                    if (scale >= 1) {
+                        clearInterval(enlargeInterval);
+                    }
+                }, 15); // Faster interval
+            }
+            
+            // Add slight random movement after animation
+            setTimeout(function() {
+                const randomX = (Math.random() - 0.5) * 150;
+                const randomY = (Math.random() - 0.5) * 150;
+                container.style.transition = 'transform 2s ease-out, left 15s ease-in-out, top 15s ease-in-out';
+                container.style.left = `${parseInt(container.style.left) + randomX}px`;
+                container.style.top = `${parseInt(container.style.top) + randomY}px`;
+            }, 1000);
+        }
+        
+        // Create confetti
+        function createConfetti() {
+            const confetti = document.createElement('div');
+            confetti.className = 'confetti';
+            
+            // Random position, color, size, and animation duration
+            const left = Math.random() * 100;
+            const width = 5 + Math.random() * 15;
+            const height = width * (0.5 + Math.random() * 0.5);
+            const duration = 3 + Math.random() * 6;
+            
+            // Random colors
+            const colors = ['#f94144', '#f3722c', '#f8961e', '#f9c74f', '#90be6d', '#43aa8b', '#577590', '#ff99cc', '#9b5de5'];
+            const color = colors[Math.floor(Math.random() * colors.length)];
+            
+            confetti.style.left = `${left}vw`;
+            confetti.style.width = `${width}px`;
+            confetti.style.height = `${height}px`;
+            confetti.style.backgroundColor = color;
+            confetti.style.animationDuration = `${duration}s`;
+            
+            document.body.appendChild(confetti);
+            
+            // Remove confetti after animation is complete
+            setTimeout(function() {
+                confetti.remove();
+            }, duration * 1000);
+        }
+        
+        // Create confetti periodically
+        setInterval(createConfetti, 300);
+        
+        // Initial instruction
+        const initialImage = document.createElement('div');
+        initialImage.style.position = 'fixed';
+        initialImage.style.bottom = '50px';
+        initialImage.style.left = '50%';
+        initialImage.style.transform = 'translateX(-50%)';
+        initialImage.style.textAlign = 'center';
+        initialImage.style.color = '#333';
+        initialImage.style.fontWeight = 'bold';
+        initialImage.style.backgroundColor = 'rgba(255,255,255,0.7)';
+        initialImage.style.padding = '10px';
+        initialImage.style.borderRadius = '10px';
+        initialImage.style.zIndex = '100';
+        initialImage.innerHTML = '👆 Click anywhere to add Pau effects! 👆';
+        document.body.appendChild(initialImage);
+        
+        // Remove initial instruction after first click
+        document.addEventListener('click', function() {
+            if (initialImage.parentNode) {
+                initialImage.remove();
+            }
+        }, { once: true });
+        
+        // Also remove on first touch for mobile
+        document.addEventListener('touchstart', function() {
+            if (initialImage.parentNode) {
+                initialImage.remove();
+            }
+        }, { once: true, passive: true });
+        
+        // Create some initial images with delay
+        setTimeout(function() {
+            for (let i = 0; i < 3; i++) {
+                const x = Math.random() * window.innerWidth;
+                const y = Math.random() * window.innerHeight;
+                createImage(x, y);
+            }
+        }, 1000);
+    </script>
+</body>
+</html>
