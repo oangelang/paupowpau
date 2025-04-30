@@ -2,10 +2,24 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>PauPowPau</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Bangers&family=Luckiest+Guy&display=swap');
+        
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        html, body {
+            height: 100%;
+            width: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            position: fixed;
+        }
         
         body {
             font-family: 'Bangers', 'Comic Sans MS', cursive, sans-serif;
@@ -13,12 +27,10 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            height: 100vh;
-            margin: 0;
-            overflow: hidden;
             cursor: pointer;
             background: linear-gradient(135deg, #ffcc99, #ff99cc);
             animation: backgroundChange 15s infinite alternate;
+            touch-action: manipulation;
         }
         
         @keyframes backgroundChange {
@@ -38,6 +50,7 @@
             padding: 20px;
             text-align: center;
             box-shadow: 8px 8px 0px #333;
+            max-width: 90%;
         }
         
         .speech-bubble:before {
@@ -59,7 +72,6 @@
             position: relative;
             transform: rotate(-5deg);
             padding: 20px 40px;
-            max-width: 90%;
             animation: pulsate 2s infinite alternate;
             z-index: 100;
         }
@@ -71,7 +83,7 @@
         
         h1 {
             font-family: 'Luckiest Guy', 'Bangers', cursive;
-            font-size: 3rem;
+            font-size: 2.5rem;
             letter-spacing: 2px;
             color: #ff3366;
             text-shadow: 3px 3px 0px #ffcc00, 5px 5px 0px #000;
@@ -79,15 +91,22 @@
             padding: 0;
         }
         
+        @media (min-width: 768px) {
+            h1 {
+                font-size: 3rem;
+            }
+        }
+        
         .image-container {
             position: absolute;
             pointer-events: none;
             z-index: 10;
-            transition: transform 0.5s ease-out;
+            will-change: transform;
         }
         
         .image-container img {
             max-width: 300px;
+            width: 100%;
             height: auto;
         }
         
@@ -97,35 +116,46 @@
             right: 20px;
             z-index: 1000;
             display: flex;
-            gap: 10px;
+            gap: 15px;
         }
         
         .btn {
             background-color: white;
-            border: 2px solid #333;
+            border: 3px solid #333;
             border-radius: 50%;
-            width: 40px;
-            height: 40px;
+            width: 60px;
+            height: 60px;
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            box-shadow: 2px 2px 0px #333;
+            box-shadow: 3px 3px 0px #333;
+            font-size: 24px;
+            touch-action: manipulation;
+            user-select: none;
+            -webkit-user-select: none;
         }
         
-        .btn:hover {
-            transform: scale(1.1);
+        .btn:active {
+            transform: translate(2px, 2px);
+            box-shadow: 1px 1px 0px #333;
         }
         
-        #background-video {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            z-index: -1;
-            opacity: 0.2;
+        @media (max-width: 768px) {
+            .controls {
+                bottom: 30px;
+                right: 30px;
+            }
+            
+            .btn {
+                width: 70px;
+                height: 70px;
+                font-size: 30px;
+            }
+            
+            .image-container img {
+                max-width: 250px;
+            }
         }
         
         .confetti {
@@ -135,6 +165,7 @@
             background-color: #f2d74e;
             opacity: 0.8;
             animation: fall linear forwards;
+            pointer-events: none;
         }
         
         @keyframes fall {
@@ -147,6 +178,26 @@
                 opacity: 0;
             }
         }
+        
+        .instruction {
+            position: fixed;
+            bottom: 50px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(255, 255, 255, 0.8);
+            color: #333;
+            font-weight: bold;
+            padding: 15px;
+            border-radius: 10px;
+            border: 2px solid #333;
+            text-align: center;
+            z-index: 100;
+            max-width: 80%;
+            box-shadow: 3px 3px 0px #333;
+            font-family: 'Bangers', sans-serif;
+            font-size: 20px;
+            letter-spacing: 1px;
+        }
     </style>
 </head>
 <body>
@@ -158,6 +209,8 @@
         <div class="btn" id="sound-toggle">🔊</div>
         <div class="btn" id="clear-all">🧹</div>
     </div>
+    
+    <div class="instruction" id="instruction">👆 Tap anywhere to add Pau effects! 👆</div>
     
     <audio id="background-music" loop>
         <source src="pau.m4a" type="audio/mp4">
@@ -173,59 +226,63 @@
         const music = document.getElementById('background-music');
         const soundToggle = document.getElementById('sound-toggle');
         const clearAllBtn = document.getElementById('clear-all');
+        const instruction = document.getElementById('instruction');
         
-        // Main click event for adding images
-        document.addEventListener('click', function(e) {
-            // Prevent clicks on controls from creating images
-            if (e.target.closest('.controls')) {
-                return;
+        // Detect if device is mobile
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        
+        // For click events
+        document.addEventListener('click', handleInteraction);
+        
+        // For touch events (mobile)
+        document.addEventListener('touchend', function(e) {
+            // Don't handle touch on controls
+            if (!e.target.closest('.controls') && !e.target.closest('.btn')) {
+                handleInteraction(e);
             }
             
-            // Play audio on click
-            playAudio();
-            
-            // Create image at click location IMMEDIATELY
-            createImage(e.clientX, e.clientY);
+            // Prevent zoom behavior on double tap
+            e.preventDefault();
         });
         
-        // For mobile touch events
-        document.addEventListener('touchstart', function(e) {
-            // Prevent default to avoid scrolling
-            e.preventDefault();
-            
-            // Prevent clicks on controls from creating images
-            if (e.target.closest('.controls')) {
+        // Handle interaction (both click and touch)
+        function handleInteraction(e) {
+            // Don't create image if clicking on controls
+            if (e.target.closest('.controls') || e.target.closest('.btn')) {
                 return;
             }
             
-            // Play audio on touch
+            // Play audio
             playAudio();
             
-            // Get touch position
-            const touch = e.touches[0];
+            // Get coordinates
+            let x, y;
             
-            // Create image at touch location IMMEDIATELY
-            createImage(touch.clientX, touch.clientY);
-        }, {passive: false});
-        
-        // Preload images
-        const imageCache = [];
-        for (let i = 1; i <= totalImages; i++) {
-            const img = new Image();
-            img.src = `${i}.png`;
-            imageCache.push(img);
-        }
-        
-        // Play audio function
-        function playAudio() {
-            if (soundOn) {
-                music.play().catch(error => {
-                    console.log("Autoplay prevented:", error);
-                });
+            if (e.type === 'touchend' && e.changedTouches && e.changedTouches.length) {
+                x = e.changedTouches[0].clientX;
+                y = e.changedTouches[0].clientY;
+            } else {
+                x = e.clientX;
+                y = e.clientY;
+            }
+            
+            // Create image at interaction location
+            createImage(x, y);
+            
+            // Remove instruction on first interaction
+            if (instruction && instruction.parentNode) {
+                instruction.remove();
             }
         }
         
-        // Toggle sound
+        // Prevent default on all touch events to avoid browser behaviors
+        document.addEventListener('touchstart', function(e) {
+            if (!e.target.closest('.controls') && !e.target.closest('.btn')) {
+                e.preventDefault();
+            }
+        }, {passive: false});
+        
+        // Handle sound toggle (with improved mobile support)
         soundToggle.addEventListener('click', function(e) {
             e.stopPropagation();
             soundOn = !soundOn;
@@ -238,13 +295,60 @@
             }
         });
         
-        // Clear all images
+        // Specifically for mobile
+        soundToggle.addEventListener('touchend', function(e) {
+            e.stopPropagation();
+            e.preventDefault();
+            soundOn = !soundOn;
+            if (soundOn) {
+                music.play();
+                soundToggle.textContent = '🔊';
+            } else {
+                music.pause();
+                soundToggle.textContent = '🔇';
+            }
+        });
+        
+        // Clear all images (with improved mobile support)
         clearAllBtn.addEventListener('click', function(e) {
             e.stopPropagation();
+            clearImages();
+        });
+        
+        // Specifically for mobile
+        clearAllBtn.addEventListener('touchend', function(e) {
+            e.stopPropagation();
+            e.preventDefault();
+            clearImages();
+        });
+        
+        function clearImages() {
             document.querySelectorAll('.image-container').forEach(function(el) {
                 el.remove();
             });
-        });
+        }
+        
+        // Preload images
+        const imageCache = [];
+        for (let i = 1; i <= totalImages; i++) {
+            const img = new Image();
+            img.src = `${i}.png`;
+            imageCache.push(img);
+        }
+        
+        // Play audio function
+        function playAudio() {
+            if (soundOn) {
+                // Try to play with user interaction
+                const playPromise = music.play();
+                
+                if (playPromise !== undefined) {
+                    playPromise.catch(function(error) {
+                        console.log("Autoplay prevented:", error);
+                    });
+                }
+            }
+        }
         
         // Create and animate an image
         function createImage(x, y) {
@@ -259,17 +363,19 @@
             img.src = `${imageNumber}.png`;
             img.alt = 'Pau Pow';
             
-            // Random size factor
-            const sizeFactor = 0.5 + Math.random();
-            img.style.maxWidth = `${300 * sizeFactor}px`;
+            // Random size factor (smaller range on mobile)
+            const maxSize = isMobile ? 200 : 300;
+            const sizeFactor = 0.6 + Math.random() * 0.7; // 0.6 to 1.3 times the size
+            const imgSize = maxSize * sizeFactor;
             
             // Add image to container and container to body
             container.appendChild(img);
             document.body.appendChild(container);
             
-            // Position the image where clicked - IMMEDIATELY visible
-            container.style.left = `${x - (150 * sizeFactor)}px`;
-            container.style.top = `${y - (150 * sizeFactor)}px`;
+            // Set initial position for immediate visibility
+            container.style.left = `${x - (imgSize/2)}px`;
+            container.style.top = `${y - (imgSize/2)}px`;
+            img.style.width = `${imgSize}px`;
             
             // Randomly choose animation type
             const animationType = Math.random() < 0.5 ? 'spin' : 'enlarge';
@@ -291,10 +397,10 @@
                 }, 20); // Faster interval
             } else {
                 // Set initial scale for immediate visibility
-                container.style.transform = 'scale(0.2)';
+                container.style.transform = 'scale(0.3)';
                 
                 // Enlarge animation
-                let scale = 0.2; // Start with some visibility
+                let scale = 0.3; // Start with some visibility
                 const growSpeed = 0.08; // Faster growth
                 const enlargeInterval = setInterval(function() {
                     scale += growSpeed;
@@ -308,8 +414,9 @@
             
             // Add slight random movement after animation
             setTimeout(function() {
-                const randomX = (Math.random() - 0.5) * 150;
-                const randomY = (Math.random() - 0.5) * 150;
+                const moveRange = isMobile ? 80 : 150; // Smaller movement on mobile
+                const randomX = (Math.random() - 0.5) * moveRange;
+                const randomY = (Math.random() - 0.5) * moveRange;
                 container.style.transition = 'transform 2s ease-out, left 15s ease-in-out, top 15s ease-in-out';
                 container.style.left = `${parseInt(container.style.left) + randomX}px`;
                 container.style.top = `${parseInt(container.style.top) + randomY}px`;
@@ -318,14 +425,20 @@
         
         // Create confetti
         function createConfetti() {
+            // Limit the number of confetti particles based on device
+            const confettiCount = document.querySelectorAll('.confetti').length;
+            const maxConfetti = isMobile ? 30 : 50;
+            
+            if (confettiCount > maxConfetti) return;
+            
             const confetti = document.createElement('div');
             confetti.className = 'confetti';
             
             // Random position, color, size, and animation duration
             const left = Math.random() * 100;
-            const width = 5 + Math.random() * 15;
+            const width = 5 + Math.random() * 10;
             const height = width * (0.5 + Math.random() * 0.5);
-            const duration = 3 + Math.random() * 6;
+            const duration = 3 + Math.random() * 4;
             
             // Random colors
             const colors = ['#f94144', '#f3722c', '#f8961e', '#f9c74f', '#90be6d', '#43aa8b', '#577590', '#ff99cc', '#9b5de5'];
@@ -341,51 +454,36 @@
             
             // Remove confetti after animation is complete
             setTimeout(function() {
-                confetti.remove();
+                if (confetti.parentNode) {
+                    confetti.remove();
+                }
             }, duration * 1000);
         }
         
-        // Create confetti periodically
-        setInterval(createConfetti, 300);
-        
-        // Initial instruction
-        const initialImage = document.createElement('div');
-        initialImage.style.position = 'fixed';
-        initialImage.style.bottom = '50px';
-        initialImage.style.left = '50%';
-        initialImage.style.transform = 'translateX(-50%)';
-        initialImage.style.textAlign = 'center';
-        initialImage.style.color = '#333';
-        initialImage.style.fontWeight = 'bold';
-        initialImage.style.backgroundColor = 'rgba(255,255,255,0.7)';
-        initialImage.style.padding = '10px';
-        initialImage.style.borderRadius = '10px';
-        initialImage.style.zIndex = '100';
-        initialImage.innerHTML = '👆 Click anywhere to add Pau effects! 👆';
-        document.body.appendChild(initialImage);
-        
-        // Remove initial instruction after first click
-        document.addEventListener('click', function() {
-            if (initialImage.parentNode) {
-                initialImage.remove();
-            }
-        }, { once: true });
-        
-        // Also remove on first touch for mobile
-        document.addEventListener('touchstart', function() {
-            if (initialImage.parentNode) {
-                initialImage.remove();
-            }
-        }, { once: true, passive: true });
+        // Create confetti at appropriate interval based on device
+        setInterval(createConfetti, isMobile ? 500 : 300);
         
         // Create some initial images with delay
         setTimeout(function() {
-            for (let i = 0; i < 3; i++) {
+            const numInitialImages = isMobile ? 2 : 3;
+            for (let i = 0; i < numInitialImages; i++) {
                 const x = Math.random() * window.innerWidth;
                 const y = Math.random() * window.innerHeight;
                 createImage(x, y);
             }
         }, 1000);
+        
+        // Prevent pinch zoom on mobile
+        document.addEventListener('gesturestart', function(e) {
+            e.preventDefault();
+        });
+        
+        // Prevent scrolling on mobile
+        document.body.addEventListener('touchmove', function(e) {
+            if (!e.target.closest('.controls')) {
+                e.preventDefault();
+            }
+        }, { passive: false });
     </script>
 </body>
 </html>
